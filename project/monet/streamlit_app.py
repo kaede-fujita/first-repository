@@ -5,9 +5,19 @@ from pathlib import Path
 st.set_page_config(page_title='医療圏流動ダッシュボード', layout='wide')
 
 BASE = Path(__file__).resolve().parent
-FLOW = BASE / 'medical_area_flow_summary.csv'
-BED = BASE / 'medical_area_bed_inflow_structure.csv'
-CHECK = BASE / 'medical_area_inpref_balance_check.csv'
+DEFAULT_DATA_DIR = BASE
+ALT_DATA_DIR = Path('/Users/fujitakaede/Documents/monet_202603')
+
+def pick_file(name: str) -> Path:
+    p1 = DEFAULT_DATA_DIR / name
+    if p1.exists():
+        return p1
+    p2 = ALT_DATA_DIR / name
+    return p2
+
+FLOW = pick_file('medical_area_flow_summary.csv')
+BED = pick_file('medical_area_bed_inflow_structure.csv')
+CHECK = pick_file('medical_area_inpref_balance_check.csv')
 
 st.title('患者調査（二次医療圏編）再現結果')
 

@@ -19,7 +19,7 @@ FLOW = pick_file('medical_area_flow_summary.csv')
 BED = pick_file('medical_area_bed_inflow_structure.csv')
 CHECK = pick_file('medical_area_inpref_balance_check.csv')
 
-st.title('患者調査（二次医療圏編）再現結果')
+st.title('R5 病院の推計入院患者数（二次医療圏編）')
 
 missing = [p.name for p in [FLOW, BED, CHECK] if not p.exists()]
 if missing:

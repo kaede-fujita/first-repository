@@ -23,6 +23,16 @@ def to_num_value(value: object) -> float:
     return float(to_number(pd.Series([value])).iat[0])
 
 
+def normalize_area_code(series: pd.Series) -> pd.Series:
+    code = (
+        series.astype(str)
+        .str.replace(r"\.0$", "", regex=True)
+        .str.replace(r"\D", "", regex=True)
+        .str.strip()
+    )
+    return code.str.zfill(4)
+
+
 def read_rokko1(path: Path) -> pd.DataFrame:
     df = pd.read_excel(path, sheet_name="年間値", header=4, dtype=str)
     use_cols = [
@@ -37,6 +47,7 @@ def read_rokko1(path: Path) -> pd.DataFrame:
         "救急車の受入件数（年間）",
     ]
     out = df[use_cols].copy()
+    out["二次医療圏コード"] = normalize_area_code(out["二次医療圏コード"])
     for c in [
         "初診患者数（年間）",
         "休日に受診した患者延べ数（年間）",
@@ -63,10 +74,33 @@ def read_rokko2(path: Path) -> pd.DataFrame:
         "紹介受診重点外来の患者延べ数",
     ]
     out = annual[use_cols].copy()
+    out["二次医療圏コード"] = normalize_area_code(out["二次医療圏コード"])
     out["紹介受診重点外来の患者延べ数"] = to_number(out["紹介受診重点外来の患者延べ数"])
     out["初診の外来の患者延べ数（年間）"] = to_number(out["初診の外来の患者延べ数（年間）"])
     out["再診の外来の患者延べ数"] = to_number(out["再診の外来の患者延べ数"])
     return out
+
+
+def load_medical_area_population(path: Path) -> pd.DataFrame:
+    df = pd.read_excel(path, sheet_name="巧見くん", header=3, dtype=str)
+    # header=3時点で、二次医療圏名は Unnamed: 1、コードは 二次医療圏コード、総人口の予測は 2020年/2025年
+    pop = df[["Unnamed: 1", "二次医療圏コード", "2020年", "2025年"]].copy()
+    pop = pop.rename(
+        columns={
+            "Unnamed: 1": "二次医療圏名_pop",
+            "二次医療圏コード": "二次医療圏コード",
+            "2020年": "人口_2020",
+            "2025年": "人口_2025",
+        }
+    )
+    pop["二次医療圏コード"] = normalize_area_code(pop["二次医療圏コード"])
+    pop["人口_2020"] = to_number(pop["人口_2020"])
+    pop["人口_2025"] = to_number(pop["人口_2025"])
+    # R5=2023年を、2020年→2025年の線形補間で推計
+    pop["人口_R5推計"] = pop["人口_2020"] + (pop["人口_2025"] - pop["人口_2020"]) * (3 / 5)
+    pop = pop[(pop["二次医療圏コード"] != "0000") & (pop["人口_R5推計"] > 0)].copy()
+    pop = pop.drop_duplicates(subset=["二次医療圏コード"], keep="first")
+    return pop[["二次医療圏コード", "人口_2020", "人口_2025", "人口_R5推計"]]
 
 
 def read_cp932_rows(path: Path) -> list[list[str]]:
@@ -115,9 +149,8 @@ def parse_prefecture_rates(path: Path, inpatient_col: int, outpatient_col: int) 
 
 def parse_t0038_prefecture(path: Path) -> pd.DataFrame:
     pref = parse_prefecture_rates(path, inpatient_col=2, outpatient_col=5)
-    total = pref["入院受療率_人口10万対"] + pref["外来受療率_人口10万対"]
-    pref["入院受療率_pct"] = (pref["入院受療率_人口10万対"] / total.replace(0, pd.NA) * 100).fillna(0)
-    pref["外来受療率_pct"] = (pref["外来受療率_人口10万対"] / total.replace(0, pd.NA) * 100).fillna(0)
+    pref["入院受療率_pct"] = pref["入院受療率_人口10万対"] / 1000
+    pref["外来受療率_pct"] = pref["外来受療率_人口10万対"] / 1000
     return pref
 
 
@@ -131,7 +164,7 @@ def parse_g0016_prefecture(path: Path) -> pd.DataFrame:
     )
 
 
-def build_emergency_by_area(rokko1: pd.DataFrame, rokko2: pd.DataFrame) -> pd.DataFrame:
+def build_emergency_by_area(rokko1: pd.DataFrame, rokko2: pd.DataFrame, population: pd.DataFrame) -> pd.DataFrame:
     key_cols = ["都道府県コード", "二次医療圏コード", "二次医療圏名", "医療機関コード（医科）", "医療機関名"]
     merged = rokko1.merge(rokko2, on=key_cols, how="inner")
 
@@ -151,8 +184,12 @@ def build_emergency_by_area(rokko1: pd.DataFrame, rokko2: pd.DataFrame) -> pd.Da
         .sum()
     )
 
+    agg = agg.merge(population, on="二次医療圏コード", how="left")
+    pop_base = agg["人口_R5推計"].where(agg["人口_R5推計"] > 0, pd.NA)
+    agg["救急発生率_pct"] = (agg["救急車の受入件数（年間）"] / pop_base * 100).fillna(0)
+    agg["救急発生率_人口10万対"] = (agg["救急車の受入件数（年間）"] / pop_base * 100000).fillna(0)
+
     base = agg["外来患者延べ数_年間"].where(agg["外来患者延べ数_年間"] > 0, pd.NA)
-    agg["救急発生率_pct"] = (agg["救急車の受入件数（年間）"] / base * 100).fillna(0)
     agg["紹介受診重点外来率_pct"] = (agg["紹介受診重点外来の患者延べ数"] / base * 100).fillna(0)
 
     return agg.sort_values("救急発生率_pct", ascending=False)
@@ -164,6 +201,11 @@ def main() -> None:
     parser.add_argument("--rokko2", type=Path, default=Path("/Users/fujitakaede/Downloads/r5rokko2.xlsx"))
     parser.add_argument("--t0038", type=Path, default=Path("/Users/fujitakaede/Downloads/t0038.csv"))
     parser.add_argument("--g0016", type=Path, default=Path("/Users/fujitakaede/Downloads/g0016.csv"))
+    parser.add_argument(
+        "--area-pop",
+        type=Path,
+        default=Path("/Users/fujitakaede/Downloads/2次医療圏基礎データ（巧見さん）Ver14.0.4_プロ版.xlsm"),
+    )
     parser.add_argument("--outdir", type=Path, default=Path(__file__).resolve().parent)
     args = parser.parse_args()
 
@@ -171,7 +213,8 @@ def main() -> None:
 
     rokko1 = read_rokko1(args.rokko1)
     rokko2 = read_rokko2(args.rokko2)
-    area_emergency = build_emergency_by_area(rokko1, rokko2)
+    population = load_medical_area_population(args.area_pop)
+    area_emergency = build_emergency_by_area(rokko1, rokko2, population)
 
     pref_r5 = parse_t0038_prefecture(args.t0038)
     pref_h29 = parse_g0016_prefecture(args.g0016)

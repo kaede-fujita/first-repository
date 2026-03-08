@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import subprocess
-import sys
 from pathlib import Path
 
 import pandas as pd
@@ -10,36 +8,15 @@ import streamlit as st
 st.set_page_config(page_title="R5 外来機能・外来（二次医療圏編）", layout="wide")
 
 BASE = Path(__file__).resolve().parent
-CLEAN_SCRIPT = BASE / "prepare_r5_outpatient_data.py"
 AREA_CSV = BASE / "r5_outpatient_emergency_by_area.csv"
 PREF_CSV = BASE / "r5_prefecture_care_rates.csv"
 
 st.title("R5 外来機能・外来（二次医療圏編）")
 st.caption("主指標: 地域別外来・入院受療率（%）と救急発生率（%）")
 
-with st.sidebar:
-    st.subheader("データ更新")
-    st.write("Excel/CSVからクリーニング済みデータを再生成します。")
-    if st.button("クリーニングを実行", type="primary"):
-        try:
-            result = subprocess.run(
-                [sys.executable, str(CLEAN_SCRIPT)],
-                cwd=str(BASE),
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            st.success("クリーニングを実行しました。")
-            if result.stdout.strip():
-                st.code(result.stdout)
-        except subprocess.CalledProcessError as exc:
-            st.error("クリーニングに失敗しました。")
-            st.code(exc.stderr or str(exc))
-
 missing = [p.name for p in [AREA_CSV, PREF_CSV] if not p.exists()]
 if missing:
     st.error(f"必要ファイルが見つかりません: {', '.join(missing)}")
-    st.info(f"先に `python {CLEAN_SCRIPT}` を実行してください。")
     st.stop()
 
 
@@ -100,8 +77,10 @@ with tab1:
         "都道府県コード",
         "二次医療圏コード",
         "二次医療圏名",
+        "人口_R5推計",
         "外来患者延べ数_年間",
         "救急車の受入件数（年間）",
+        "救急発生率_人口10万対",
         "救急発生率_pct",
         "紹介受診重点外来率_pct",
     ]
@@ -114,24 +93,24 @@ with tab1:
 with tab2:
     c1, c2 = st.columns(2)
     c1.metric("地域数", f"{pref['地域'].nunique():,}")
-    c2.metric("全国 外来受療率（人口10万対）", f"{pref.loc[pref['地域'] == '全国', '外来受療率_人口10万対'].sum():,.0f}")
+    c2.metric("全国 外来受療率（%）", f"{pref.loc[pref['地域'] == '全国', '外来受療率_pct'].sum():.3f}")
 
     top = pref[pref["地域"] != "全国"].copy()
-    top = top.sort_values("外来受療率_人口10万対", ascending=False).head(20)
+    top = top.sort_values("外来受療率_pct", ascending=False).head(20)
 
-    st.subheader("外来受療率（人口10万対）上位20地域")
-    st.bar_chart(top.set_index("地域")[["外来受療率_人口10万対", "入院受療率_人口10万対"]])
+    st.subheader("外来受療率（%）上位20地域")
+    st.bar_chart(top.set_index("地域")[["外来受療率_pct", "入院受療率_pct"]])
 
     st.subheader("地域別 外来・入院受療率（% と人口10万対）")
     cols = [
         "地域",
-        "入院受療率_人口10万対",
-        "外来受療率_人口10万対",
         "入院受療率_pct",
         "外来受療率_pct",
+        "入院受療率_人口10万対",
+        "外来受療率_人口10万対",
     ]
     if "入院受療率_変化率_pct" in pref.columns:
         cols += ["入院受療率_変化率_pct", "外来受療率_変化率_pct"]
-    st.dataframe(pref[cols].sort_values("外来受療率_人口10万対", ascending=False), use_container_width=True, height=520)
+    st.dataframe(pref[cols].sort_values("外来受療率_pct", ascending=False), use_container_width=True, height=520)
 
-st.caption("注: 受療率は患者調査CSV（t0038/g0016）由来。救急発生率は救急車受入件数 ÷ 外来患者延べ数（年間）×100 で算出。")
+st.caption("注: 受療率(%)は人口10万対を1000で除して換算。救急発生率は救急車受入件数 ÷ 二次医療圏人口(R5推計) ×100。人口は2020年→2025年の線形補間。")

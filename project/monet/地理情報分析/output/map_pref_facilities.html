@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>都道府県別 施設数</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+  h1 { margin: 12px 16px; font-size: 18px; }
+  #map { height: calc(100vh - 48px); }
+</style>
+</head>
+<body>
+  <h1>都道府県別 施設数</h1>
+  <div id="map"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const data = [{"都道府県名": "茨城県", "lat": 35.96064308333334, "lon": 140.62986841111112, "施設数": 18}];
+    const maxVal = 18.0;
+    const map = L.map('map').setView([35.96064308333334, 140.62986841111112], 8);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    function radius(v) {
+      if (!maxVal || v <= 0) return 6;
+      return 6 + 18 * Math.sqrt(v / maxVal);
+    }
+
+    data.forEach((r) => {
+      const v = Number(r['施設数']) || 0;
+      L.circleMarker([r.lat, r.lon], {
+        radius: radius(v),
+        color: '#005f73',
+        fillColor: '#0a9396',
+        fillOpacity: 0.65,
+        weight: 1
+      }).bindPopup(`${r['都道府県名']}<br>施設数: ${v.toLocaleString()}`).addTo(map);
+    });
+  </script>
+</body>
+</html>

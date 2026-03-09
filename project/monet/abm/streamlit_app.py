@@ -16,7 +16,10 @@ APP_DIR = Path(__file__).resolve().parent
 
 
 def find_existing_path(candidates: list[str]) -> Path:
+    user_workspace = Path("/Users/fujitakaede/Documents/Visual Studio Code")
     roots = [APP_DIR] + list(APP_DIR.parents[:6]) + [Path.cwd()]
+    if user_workspace.exists():
+        roots.insert(0, user_workspace)
     seen: set[Path] = set()
     for root in roots:
         for rel in candidates:

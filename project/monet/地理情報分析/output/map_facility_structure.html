@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>施設別 構造スコア偏差値マップ</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
 <style>
 body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
 h1 { margin: 12px 16px; font-size: 18px; }
@@ -14,33 +14,61 @@ h1 { margin: 12px 16px; font-size: 18px; }
 <body>
 <h1>施設別 構造スコア偏差値マップ</h1>
 <div id="map"></div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script>
-  const data = [{"医療機関名": "医療法人社団善仁会 小山記念病院", "二次医療圏名": "鹿行", "住所": "茨城県鹿嶋市厨５丁目１−２", "緯度": 35.9737396, "経度": 140.6237364, "構造スコア偏差値": 76.67509616818778}, {"医療機関名": "神栖済生会病院", "二次医療圏名": "鹿行", "住所": "茨城県神栖市知手中央７丁目２−４５", "緯度": 35.872656, "経度": 140.7066117, "構造スコア偏差値": 66.05523774656353}, {"医療機関名": "社会福祉法人白十字会 白十字総合病院", "二次医療圏名": "鹿行", "住所": "茨城県神栖市賀２１４８", "緯度": 35.8999398, "経度": 140.6207508, "構造スコア偏差値": 65.08746102455888}, {"医療機関名": "前田病院", "二次医療圏名": "鹿行", "住所": "茨城県鹿嶋市宮中5201", "緯度": 35.9655653, "経度": 140.6343131, "構造スコア偏差値": 48.86293625222397}, {"医療機関名": "鹿嶋ハートクリニック", "二次医療圏名": "鹿行", "住所": "茨城県神栖市平泉１−１６８", "緯度": 35.9122289, "経度": 140.6357153, "構造スコア偏差値": 51.103695898167494}, {"医療機関名": "公益財団法人 鹿島病院", "二次医療圏名": "鹿行", "住所": "茨城県鹿嶋市平井１１２９−２", "緯度": 35.9641831, "経度": 140.6592181, "構造スコア偏差値": 50.35490586768938}, {"医療機関名": "医療法人正友会 島医院", "二次医療圏名": "鹿行", "住所": "茨城県鹿嶋市宮中1996番地6", "緯度": 35.9648603, "経度": 140.6360617, "構造スコア偏差値": 44.10888161170446}, {"医療機関名": "医療法人社団葉山産婦人科", "二次医療圏名": "鹿行", "住所": "茨城県鹿嶋市宮中１９９５−２５ 大字）１９９５−２５", "緯度": 35.9648716, "経度": 140.6381611, "構造スコア偏差値": 44.26788783719965}, {"医療機関名": "井上眼科医院", "二次医療圏名": "鹿行", "住所": "茨城県鹿嶋市宮中８丁目９−３０", "緯度": 35.962958, "経度": 140.6255456, "構造スコア偏差値": 40.39350116917409}, {"医療機関名": "医療法人晴生会 鹿島神宮前病院", "二次医療圏名": "鹿行", "住所": "茨城県鹿嶋市宮中１９９５−２４", "緯度": 35.964534, "経度": 140.6350857, "構造スコア偏差値": 40.53910746591573}, {"医療機関名": "土浦協同病院なめがた地域医療センター", "二次医療圏名": "鹿行", "住所": "茨城県行方市井上藤井９８−８", "緯度": 36.0695928, "経度": 140.456436, "構造スコア偏差値": 57.2637934638924}, {"医療機関名": "医療法人三尚会 高須病院", "二次医療圏名": "鹿行", "住所": "茨城県鉾田市鉾田２５７０", "緯度": 36.1529757, "経度": 140.5071229, "構造スコア偏差値": 52.777327302304194}, {"医療機関名": "大野診療所", "二次医療圏名": "鹿行", "住所": "茨城県鹿嶋市和８２４−１", "緯度": 36.040028, "経度": 140.611665, "構造スコア偏差値": 41.14935470248071}, {"医療機関名": "つばさクリニック", "二次医療圏名": "鹿行", "住所": "茨城県行方市島並１５１１", "緯度": 36.0245409, "経度": 140.4886312, "構造スコア偏差値": 40.66497631150955}, {"医療機関名": "医療法人社団土合会 渡辺病院", "二次医療圏名": "鹿行", "住所": "茨城県神栖市土合本町２丁目９８０９−２０", "緯度": 35.7921116, "経度": 140.7756798, "構造スコア偏差値": 47.00111156903416}, {"医療機関名": "医療法人東湖会 鉾田病院", "二次医療圏名": "鹿行", "住所": "茨城県鉾田市安房１６５０−２", "緯度": 36.1663493, "経度": 140.5244074, "構造スコア偏差値": 48.79499884058622}, {"医療機関名": "清仁会病院", "二次医療圏名": "鹿行", "住所": "茨城県神栖市矢田部１１３４５−１", "緯度": 35.8104903, "経度": 140.7769194, "構造スコア偏差値": 43.01425598416832}, {"医療機関名": "済生会土合クリニック", "二次医療圏名": "鹿行", "住所": "茨城県神栖市土合本町１丁目９１０８番３", "緯度": 35.7899503, "経度": 140.7815702, "構造スコア偏差値": 41.88547078463951}];
-  const maxVal = 76.67509616818778;
-  const map = L.map('map').setView([35.96064308333333, 140.6298684111111], 9);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 18,
-    attribution: '&copy; OpenStreetMap contributors'
-  }).addTo(map);
+const facilities = {"type": "FeatureCollection", "features": [{"type": "Feature", "geometry": {"type": "Point", "coordinates": [140.6237364, 35.9737396]}, "properties": {"医療機関名": "医療法人社団善仁会 小山記念病院", "二次医療圏名": "鹿行", "住所": "茨城県鹿嶋市厨５丁目１−２", "value": 76.67509616818778}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [140.7066117, 35.872656]}, "properties": {"医療機関名": "神栖済生会病院", "二次医療圏名": "鹿行", "住所": "茨城県神栖市知手中央７丁目２−４５", "value": 66.05523774656353}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [140.6207508, 35.8999398]}, "properties": {"医療機関名": "社会福祉法人白十字会 白十字総合病院", "二次医療圏名": "鹿行", "住所": "茨城県神栖市賀２１４８", "value": 65.08746102455888}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [140.6343131, 35.9655653]}, "properties": {"医療機関名": "前田病院", "二次医療圏名": "鹿行", "住所": "茨城県鹿嶋市宮中5201", "value": 48.86293625222397}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [140.6357153, 35.9122289]}, "properties": {"医療機関名": "鹿嶋ハートクリニック", "二次医療圏名": "鹿行", "住所": "茨城県神栖市平泉１−１６８", "value": 51.103695898167494}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [140.6592181, 35.9641831]}, "properties": {"医療機関名": "公益財団法人 鹿島病院", "二次医療圏名": "鹿行", "住所": "茨城県鹿嶋市平井１１２９−２", "value": 50.35490586768938}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [140.6360617, 35.9648603]}, "properties": {"医療機関名": "医療法人正友会 島医院", "二次医療圏名": "鹿行", "住所": "茨城県鹿嶋市宮中1996番地6", "value": 44.10888161170446}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [140.6381611, 35.9648716]}, "properties": {"医療機関名": "医療法人社団葉山産婦人科", "二次医療圏名": "鹿行", "住所": "茨城県鹿嶋市宮中１９９５−２５ 大字）１９９５−２５", "value": 44.26788783719965}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [140.6255456, 35.962958]}, "properties": {"医療機関名": "井上眼科医院", "二次医療圏名": "鹿行", "住所": "茨城県鹿嶋市宮中８丁目９−３０", "value": 40.39350116917409}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [140.6350857, 35.964534]}, "properties": {"医療機関名": "医療法人晴生会 鹿島神宮前病院", "二次医療圏名": "鹿行", "住所": "茨城県鹿嶋市宮中１９９５−２４", "value": 40.53910746591573}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [140.456436, 36.0695928]}, "properties": {"医療機関名": "土浦協同病院なめがた地域医療センター", "二次医療圏名": "鹿行", "住所": "茨城県行方市井上藤井９８−８", "value": 57.2637934638924}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [140.5071229, 36.1529757]}, "properties": {"医療機関名": "医療法人三尚会 高須病院", "二次医療圏名": "鹿行", "住所": "茨城県鉾田市鉾田２５７０", "value": 52.777327302304194}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [140.611665, 36.040028]}, "properties": {"医療機関名": "大野診療所", "二次医療圏名": "鹿行", "住所": "茨城県鹿嶋市和８２４−１", "value": 41.14935470248071}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [140.4886312, 36.0245409]}, "properties": {"医療機関名": "つばさクリニック", "二次医療圏名": "鹿行", "住所": "茨城県行方市島並１５１１", "value": 40.66497631150955}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [140.7756798, 35.7921116]}, "properties": {"医療機関名": "医療法人社団土合会 渡辺病院", "二次医療圏名": "鹿行", "住所": "茨城県神栖市土合本町２丁目９８０９−２０", "value": 47.00111156903416}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [140.5244074, 36.1663493]}, "properties": {"医療機関名": "医療法人東湖会 鉾田病院", "二次医療圏名": "鹿行", "住所": "茨城県鉾田市安房１６５０−２", "value": 48.79499884058622}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [140.7769194, 35.8104903]}, "properties": {"医療機関名": "清仁会病院", "二次医療圏名": "鹿行", "住所": "茨城県神栖市矢田部１１３４５−１", "value": 43.01425598416832}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [140.7815702, 35.7899503]}, "properties": {"医療機関名": "済生会土合クリニック", "二次医療圏名": "鹿行", "住所": "茨城県神栖市土合本町１丁目９１０８番３", "value": 41.88547078463951}}]};
+const map = new maplibregl.Map({
+  container: 'map',
+  style: {
+    version: 8,
+    sources: {
+      osm: {
+        type: 'raster',
+        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+        tileSize: 256,
+        attribution: '&copy; OpenStreetMap contributors'
+      }
+    },
+    layers: [{ id: 'osm', type: 'raster', source: 'osm' }]
+  },
+  center: [140.6298684111111, 35.96064308333333],
+  zoom: 9
+});
 
-  function radius(v) {
-    if (!maxVal || v <= 0) return 5;
-    return 5 + 14 * Math.sqrt(v / maxVal);
-  }
+map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
-  data.forEach((r) => {
-    const v = Number(r['構造スコア偏差値']) || 0;
-    L.circleMarker([r.緯度, r.経度], {
-      radius: radius(v),
-      color: '#9b2226',
-      fillColor: '#ee9b00',
-      fillOpacity: 0.75,
-      weight: 1
-    }).bindPopup(
-      `${r.医療機関名}<br>医療圏: ${r.二次医療圏名}<br>構造スコア偏差値: ${v.toLocaleString()}<br>住所: ${r.住所 || ''}`
-    ).addTo(map);
+map.on('load', () => {
+  map.addSource('facilities', { type: 'geojson', data: facilities });
+  map.addLayer({
+    id: 'facility-circles',
+    type: 'circle',
+    source: 'facilities',
+    paint: {
+      'circle-color': '#ee9b00',
+      'circle-stroke-color': '#9b2226',
+      'circle-stroke-width': 1,
+      'circle-opacity': 0.78,
+      'circle-radius': [
+        'interpolate', ['linear'], ['get', 'value'],
+        0, 5,
+        76.67509616818778, 19
+      ]
+    }
   });
+
+  map.on('click', 'facility-circles', (e) => {
+    const p = e.features[0].properties;
+    const html = `${p['医療機関名'] || ''}<br>医療圏: ${p['二次医療圏名'] || ''}<br>構造スコア偏差値: ${Number(p.value || 0).toLocaleString()}<br>住所: ${p['住所'] || ''}`;
+    new maplibregl.Popup().setLngLat(e.lngLat).setHTML(html).addTo(map);
+  });
+
+  map.on('mouseenter', 'facility-circles', () => {
+    map.getCanvas().style.cursor = 'pointer';
+  });
+  map.on('mouseleave', 'facility-circles', () => {
+    map.getCanvas().style.cursor = '';
+  });
+});
 </script>
 </body>
 </html>

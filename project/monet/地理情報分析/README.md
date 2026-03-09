@@ -25,8 +25,8 @@
 - `output/medical_area_evaluation.csv`: 医療圏評価指標
 - `output/medical_area_summary.csv`: 医療圏評価（同内容）
 - `output/top10_medical_areas.csv`: 医療圏評価上位
-- `output/map_facility_emergency.html`: 施設別救急受入マップ
-- `output/map_facility_structure.html`: 施設別構造スコア偏差値マップ
+- `output/map_facility_emergency.html`: 施設別救急受入マップ（MapLibre）
+- `output/map_facility_structure.html`: 施設別構造スコア偏差値マップ（MapLibre）
 
 ## 実行
 ```bash

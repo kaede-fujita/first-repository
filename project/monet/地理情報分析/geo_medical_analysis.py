@@ -70,7 +70,7 @@ def nearest_neighbor_mean_km(points: pd.DataFrame) -> float:
     return float(sum(mins) / len(mins)) if mins else float("nan")
 
 
-def build_facility_leaflet_html(df: pd.DataFrame, value_col: str, title: str) -> str:
+def build_facility_maplibre_html(df: pd.DataFrame, value_col: str, title: str) -> str:
     if df.empty:
         center_lat, center_lon = 36.2, 138.2
         max_val = 0.0
@@ -79,8 +79,23 @@ def build_facility_leaflet_html(df: pd.DataFrame, value_col: str, title: str) ->
         center_lon = float(df["経度"].mean())
         max_val = float(df[value_col].max())
 
-    records = df[["医療機関名", "二次医療圏名", "住所", "緯度", "経度", value_col]].to_dict(orient="records")
-    records_json = json.dumps(records, ensure_ascii=False)
+    features = []
+    for _, row in df.iterrows():
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [float(row["経度"]), float(row["緯度"])]},
+                "properties": {
+                    "医療機関名": row.get("医療機関名", ""),
+                    "二次医療圏名": row.get("二次医療圏名", ""),
+                    "住所": row.get("住所", ""),
+                    "value": float(row.get(value_col, 0) or 0),
+                },
+            }
+        )
+    geojson = {"type": "FeatureCollection", "features": features}
+    geojson_json = json.dumps(geojson, ensure_ascii=False)
+    safe_max = max(max_val, 1.0)
 
     return f"""<!doctype html>
 <html lang=\"ja\">
@@ -88,7 +103,7 @@ def build_facility_leaflet_html(df: pd.DataFrame, value_col: str, title: str) ->
 <meta charset=\"utf-8\" />
 <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\" />
 <title>{title}</title>
-<link rel=\"stylesheet\" href=\"https://unpkg.com/leaflet@1.9.4/dist/leaflet.css\" />
+<link href=\"https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css\" rel=\"stylesheet\" />
 <style>
 body {{ margin: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }}
 h1 {{ margin: 12px 16px; font-size: 18px; }}
@@ -98,33 +113,61 @@ h1 {{ margin: 12px 16px; font-size: 18px; }}
 <body>
 <h1>{title}</h1>
 <div id=\"map\"></div>
-<script src=\"https://unpkg.com/leaflet@1.9.4/dist/leaflet.js\"></script>
+<script src=\"https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js\"></script>
 <script>
-  const data = {records_json};
-  const maxVal = {max_val};
-  const map = L.map('map').setView([{center_lat}, {center_lon}], 9);
-  L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
-    maxZoom: 18,
-    attribution: '&copy; OpenStreetMap contributors'
-  }}).addTo(map);
+const facilities = {geojson_json};
+const map = new maplibregl.Map({{
+  container: 'map',
+  style: {{
+    version: 8,
+    sources: {{
+      osm: {{
+        type: 'raster',
+        tiles: ['https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png'],
+        tileSize: 256,
+        attribution: '&copy; OpenStreetMap contributors'
+      }}
+    }},
+    layers: [{{ id: 'osm', type: 'raster', source: 'osm' }}]
+  }},
+  center: [{center_lon}, {center_lat}],
+  zoom: 9
+}});
 
-  function radius(v) {{
-    if (!maxVal || v <= 0) return 5;
-    return 5 + 14 * Math.sqrt(v / maxVal);
-  }}
+map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
-  data.forEach((r) => {{
-    const v = Number(r['{value_col}']) || 0;
-    L.circleMarker([r.緯度, r.経度], {{
-      radius: radius(v),
-      color: '#9b2226',
-      fillColor: '#ee9b00',
-      fillOpacity: 0.75,
-      weight: 1
-    }}).bindPopup(
-      `${{r.医療機関名}}<br>医療圏: ${{r.二次医療圏名}}<br>{value_col}: ${{v.toLocaleString()}}<br>住所: ${{r.住所 || ''}}`
-    ).addTo(map);
+map.on('load', () => {{
+  map.addSource('facilities', {{ type: 'geojson', data: facilities }});
+  map.addLayer({{
+    id: 'facility-circles',
+    type: 'circle',
+    source: 'facilities',
+    paint: {{
+      'circle-color': '#ee9b00',
+      'circle-stroke-color': '#9b2226',
+      'circle-stroke-width': 1,
+      'circle-opacity': 0.78,
+      'circle-radius': [
+        'interpolate', ['linear'], ['get', 'value'],
+        0, 5,
+        {safe_max}, 19
+      ]
+    }}
   }});
+
+  map.on('click', 'facility-circles', (e) => {{
+    const p = e.features[0].properties;
+    const html = `${{p['医療機関名'] || ''}}<br>医療圏: ${{p['二次医療圏名'] || ''}}<br>{value_col}: ${{Number(p.value || 0).toLocaleString()}}<br>住所: ${{p['住所'] || ''}}`;
+    new maplibregl.Popup().setLngLat(e.lngLat).setHTML(html).addTo(map);
+  }});
+
+  map.on('mouseenter', 'facility-circles', () => {{
+    map.getCanvas().style.cursor = 'pointer';
+  }});
+  map.on('mouseleave', 'facility-circles', () => {{
+    map.getCanvas().style.cursor = '';
+  }});
+}});
 </script>
 </body>
 </html>
@@ -274,8 +317,8 @@ def main() -> None:
     area.to_csv(outdir / "medical_area_evaluation.csv", index=False, encoding="utf-8-sig")
     area.head(10).to_csv(outdir / "top10_medical_areas.csv", index=False, encoding="utf-8-sig")
 
-    map1 = build_facility_leaflet_html(facility_geo, "救急車の受入件数（年間）", "施設別 救急受入件数マップ")
-    map2 = build_facility_leaflet_html(facility_geo, "構造スコア偏差値", "施設別 構造スコア偏差値マップ")
+    map1 = build_facility_maplibre_html(facility_geo, "救急車の受入件数（年間）", "施設別 救急受入件数マップ")
+    map2 = build_facility_maplibre_html(facility_geo, "構造スコア偏差値", "施設別 構造スコア偏差値マップ")
     (outdir / "map_facility_emergency.html").write_text(map1, encoding="utf-8")
     (outdir / "map_facility_structure.html").write_text(map2, encoding="utf-8")
 

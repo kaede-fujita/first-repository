@@ -16,21 +16,29 @@ APP_DIR = Path(__file__).resolve().parent
 
 
 def find_existing_path(candidates: list[str]) -> Path:
-    user_workspace = Path("/Users/fujitakaede/Documents/Visual Studio Code")
-    roots = [APP_DIR] + list(APP_DIR.parents[:6]) + [Path.cwd()]
-    if user_workspace.exists():
-        roots.insert(0, user_workspace)
+    roots = [APP_DIR, APP_DIR / "data", Path.cwd()] + list(APP_DIR.parents[:6])
     seen: set[Path] = set()
     for root in roots:
         for rel in candidates:
-            p = (root / rel).resolve()
+            rel_path = Path(rel)
+            p = rel_path if rel_path.is_absolute() else (root / rel_path).resolve()
             if p in seen:
                 continue
             seen.add(p)
             if p.is_file():
                 return p
-    return Path(candidates[0])
+    return (APP_DIR / candidates[0]).resolve()
 
+
+def is_lfs_pointer(path: Path) -> bool:
+    if not path.is_file():
+        return False
+    try:
+        with path.open("r", encoding="utf-8", errors="ignore") as f:
+            head = f.readline().strip()
+        return head == "version https://git-lfs.github.com/spec/v1"
+    except OSError:
+        return False
 
 DEFAULT_DEMAND_CSV = find_existing_path(
     [
@@ -440,6 +448,20 @@ def main() -> None:
     if missing:
         st.error("入力CSVが見つかりません。実在するファイルパスを指定してください。")
         for label, path_str in missing:
+            st.write(f"- {label}: `{path_str}`")
+        return
+
+    lfs_only = []
+    for label, path_str in (
+        ("需要CSV", demand_csv),
+        ("住民CSV", residents_csv),
+        ("施設CSV", facilities_csv),
+    ):
+        if is_lfs_pointer(Path(path_str)):
+            lfs_only.append((label, path_str))
+    if lfs_only:
+        st.error("CSVはGit LFSポインタのみで、実データが未取得です。`git lfs pull` を実行してから再試行してください。")
+        for label, path_str in lfs_only:
             st.write(f"- {label}: `{path_str}`")
         return
 

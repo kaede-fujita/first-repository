@@ -34,18 +34,21 @@ def find_existing_path(candidates: list[str]) -> Path:
 
 DEFAULT_DEMAND_CSV = find_existing_path(
     [
+        "demand_geo_daily.csv",
         "soars/logs/test/test8/results/demand_geo_daily.csv",
         "logs/test/test8/results/demand_geo_daily.csv",
     ]
 )
 DEFAULT_RESIDENTS_CSV = find_existing_path(
     [
+        "residents_microdata.csv",
         "soars/src/test/test8/residents_microdata.csv",
         "src/test/test8/residents_microdata.csv",
     ]
 )
 DEFAULT_FACILITIES_CSV = find_existing_path(
     [
+        "facilities_kako_iryoken.csv",
         "soars/src/test/test8/facilities_kako_iryoken.csv",
         "src/test/test8/facilities_kako_iryoken.csv",
     ]

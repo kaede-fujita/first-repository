@@ -13,10 +13,40 @@ import streamlit as st
 
 
 APP_DIR = Path(__file__).resolve().parent
-WORKSPACE_DIR = APP_DIR.parents[3]
-DEFAULT_DEMAND_CSV = WORKSPACE_DIR / "soars/logs/test/test8/results/demand_geo_daily.csv"
-DEFAULT_RESIDENTS_CSV = WORKSPACE_DIR / "soars/src/test/test8/residents_microdata.csv"
-DEFAULT_FACILITIES_CSV = WORKSPACE_DIR / "soars/src/test/test8/facilities_kako_iryoken.csv"
+
+
+def find_existing_path(candidates: list[str]) -> Path:
+    roots = [APP_DIR] + list(APP_DIR.parents[:6]) + [Path.cwd()]
+    seen: set[Path] = set()
+    for root in roots:
+        for rel in candidates:
+            p = (root / rel).resolve()
+            if p in seen:
+                continue
+            seen.add(p)
+            if p.is_file():
+                return p
+    return Path(candidates[0])
+
+
+DEFAULT_DEMAND_CSV = find_existing_path(
+    [
+        "soars/logs/test/test8/results/demand_geo_daily.csv",
+        "logs/test/test8/results/demand_geo_daily.csv",
+    ]
+)
+DEFAULT_RESIDENTS_CSV = find_existing_path(
+    [
+        "soars/src/test/test8/residents_microdata.csv",
+        "src/test/test8/residents_microdata.csv",
+    ]
+)
+DEFAULT_FACILITIES_CSV = find_existing_path(
+    [
+        "soars/src/test/test8/facilities_kako_iryoken.csv",
+        "src/test/test8/facilities_kako_iryoken.csv",
+    ]
+)
 
 LOG_SUMMARY_JSON = APP_DIR / "streamlit_summary.json"
 LOG_FILTERED_CSV = APP_DIR / "streamlit_filtered_cells.csv"
@@ -392,6 +422,20 @@ def main() -> None:
     with c2:
         facilities_csv = st.text_input("施設CSV", str(DEFAULT_FACILITIES_CSV))
         grid_size = st.number_input("グリッド幅(度)", min_value=0.001, max_value=0.05, value=0.005, step=0.001, format="%.3f")
+
+    missing = []
+    for label, path_str in (
+        ("需要CSV", demand_csv),
+        ("住民CSV", residents_csv),
+        ("施設CSV", facilities_csv),
+    ):
+        if not Path(path_str).is_file():
+            missing.append((label, path_str))
+    if missing:
+        st.error("入力CSVが見つかりません。実在するファイルパスを指定してください。")
+        for label, path_str in missing:
+            st.write(f"- {label}: `{path_str}`")
+        return
 
     try:
         base_df = aggregate_cells(demand_csv, residents_csv, facilities_csv, grid_size)
